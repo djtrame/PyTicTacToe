@@ -1,4 +1,6 @@
 import pygame
+from PyTicTacToe_Classes import *
+import colors as c
 
 pygame.init()
 
@@ -9,11 +11,13 @@ red = (255,0,0)
 
 display_width = 700
 display_height = 700
+COLUMNS = 3
+ROWS = 3
 
 clock = pygame.time.Clock()
 
 gameDisplay = pygame.display.set_mode((display_width,display_height))
-pygame.display.set_caption('testbed')
+pygame.display.set_caption('PyTicTacToe')
 
 FPS = 10
 
@@ -37,6 +41,19 @@ mediumfont = pygame.font.Font("fonts/freesansbold.ttf", 50)
 largefont = pygame.font.Font("fonts/freesansbold.ttf", 80)
 
 def main():
+    panelX = (display_width * 0.1) / 2
+    panelWidth = display_width * 0.9
+    panelY = (display_height * 0.15) / 2
+    panelHeight = display_height * 0.9
+
+    #this draws the gray panel that represents our game board
+    #it will mostly be covered by BoardSquares
+    mainBoard = PhysicalBoard(COLUMNS, ROWS, panelX, panelY, panelWidth, panelHeight)
+    mainBoard.printMe()
+
+
+
+
     global testBoxX
     global testBoxY
 
@@ -71,30 +88,6 @@ def main():
 
                     last_click = pygame.time.get_ticks()
 
-            #### double click code
-            #     if timer == 0:
-            #         pygame.time.set_timer(double_click_event, 500)
-            #         timerset = True
-            #     else:
-            #         if timer == 1:
-            #             pygame.time.set_timer(double_click_event, 0)
-            #             #double_click()
-            #             timerset = False
-            #
-            #     if timerset:
-            #         timer = 1
-            #         return
-            #     else:
-            #         timer = 0
-            #         return
-            #
-            # elif event.type == double_click_event:
-            #     # timer timed out
-            #     pygame.time.set_timer(double_click_event, 0)
-            #     timer = 0
-            #     print ("evt = dble click")
-            #### end double click
-
             if event.type == pygame.MOUSEBUTTONUP:
                 #print(event.button)
                 #this gets the amount of x,y movement of the mouse since the last call of the function
@@ -114,9 +107,10 @@ def main():
         #attach the box to the mouse cursor if we click over the box
         attach_box_to_cursor(mouseDown)
 
-        draw_panel()
+        #draw_panel()
+        mainBoard.draw(gameDisplay, c.gray)
 
-        draw_boxes()
+        #draw_boxes()
 
         if double_click:
             draw_letter()
