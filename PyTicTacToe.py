@@ -1,6 +1,7 @@
 import pygame
 from PyTicTacToe_Classes import *
 import colors as c
+#import fonts
 
 pygame.init()
 
@@ -36,9 +37,7 @@ boardSquareSize = int((panelWidth / 3) - 6)
 
 boxSelected = False
 
-smallfont = pygame.font.Font("fonts/freesansbold.ttf", 25)
-mediumfont = pygame.font.Font("fonts/freesansbold.ttf", 50)
-largefont = pygame.font.Font("fonts/freesansbold.ttf", 80)
+
 
 def main():
     panelX = (display_width * 0.1) / 2
@@ -46,12 +45,23 @@ def main():
     panelY = (display_height * 0.15) / 2
     panelHeight = display_height * 0.9
 
+    firstGame = Game()
+    gamePieceX = GamePiece('X', c.green)
+    gamePieceO = GamePiece('O', c.blue)
+    player1 = Player('Human', 1, gamePieceX)
+    player2 = Player('Human', 2, gamePieceO)
+    currentTurn = Turn(len(firstGame.Turns)+1, player1)
+
     #this draws the gray panel that represents our game board
     #it will mostly be covered by BoardSquares
     mainBoard = PhysicalBoard(COLUMNS, ROWS, panelX, panelY, panelWidth, panelHeight)
-    mainBoard.printMe()
+    #mainBoard.printMe()
 
-
+    #add stuff to the game object
+    firstGame.physicalGameBoard = mainBoard
+    firstGame.Players.append(player1)
+    firstGame.Players.append(player2)
+    firstGame.Turns.append(currentTurn)
 
 
     global testBoxX
@@ -73,6 +83,11 @@ def main():
                 pygame.quit()
                 quit()
 
+            #use keys for testing certain functions
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_t:
+                    print(firstGame.isWinnerFromTopToBottom(2))
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # print(event.button)
                 if event.button == 1:
@@ -80,7 +95,7 @@ def main():
 
                     now = pygame.time.get_ticks()
                     if (now - last_click) <= double_click_duration:
-                        print('double click ' + str(now) + ' ' + str(last_click) + ' Diff:' + str((now - last_click)))
+                        #print('double click ' + str(now) + ' ' + str(last_click) + ' Diff:' + str((now - last_click)))
                         double_click = True
                     else:
                         pass
@@ -105,61 +120,59 @@ def main():
         #drag_n_drop(mouseDown)
 
         #attach the box to the mouse cursor if we click over the box
-        attach_box_to_cursor(mouseDown)
+        #attach_box_to_cursor(mouseDown)
 
-        #draw_panel()
-        mainBoard.draw(gameDisplay, c.gray)
-
-        #draw_boxes()
-
+        #if we have double clicked let's determine what PhysicalBoardSquare was clicked on
         if double_click:
-            draw_letter()
+            #draw_letter()
+            endTurn = handleDoubleClick(mainBoard.PhysicalBoardSquares, currentTurn)
+            #print(endTurn)
+
+            print('currentTurn #: ' + str(currentTurn.turnNum) + ' Player: ' + str(currentTurn.player.playerNum))
+
+            #if we end the turn, then generate a new turn and switch the player
+            if endTurn:
+                newTurn = Turn(currentTurn.turnNum+1, firstGame.getOpponent(currentTurn.player))
+                firstGame.Turns.append(newTurn)
+                #currentTurn = None
+                currentTurn = newTurn
+                print('newTurn #: ' + str(newTurn.turnNum) + ' Player: ' + str(currentTurn.player.playerNum))
+                #mainBoard.printMe()
+                #print(str(mainBoard.getPieceAtPosition(6).type))
+
+            double_click = False
+            #mainBoard.printMe()
+
+        mainBoard.draw(gameDisplay, c.gray)
+        mainBoard.drawPhysicalBoardSquares(gameDisplay, c.red)
+
 
         pygame.display.update()
         clock.tick(FPS)
 
-def draw_letter():
-    textSurface = largefont.render('X', True, green)
-    textRect = textSurface.get_rect()
+def handleDoubleClick(lPhysBoardSquares, currentTurn):
+    pos = pygame.mouse.get_pos()
 
-    textRect.center = (display_width / 2), (display_height / 2) + 50
+    mouseX = pos[0]
+    mouseY = pos[1]
 
-    gameDisplay.blit(textSurface, textRect)
+    for PhysicalBoardSquare in lPhysBoardSquares:
+        if PhysicalBoardSquare.X <= mouseX <= (PhysicalBoardSquare.X + PhysicalBoardSquare.width) and \
+            PhysicalBoardSquare.Y <= mouseY <= (PhysicalBoardSquare.Y + PhysicalBoardSquare.height):
+            # print('This square was double clicked: ' + str(PhysicalBoardSquare.position))
 
-def draw_boxes():
-    #draw 9 boxes to simulate a tictactoe board
-    # pygame.draw.rect(gameDisplay, red, (panelX, panelY, boardSquareSize, boardSquareSize))
+            #if this square is empty, then place the piece of the current player into the square
+            if PhysicalBoardSquare.gamePiece is None:
+                PhysicalBoardSquare.gamePiece = GamePiece(currentTurn.player.gamePiece.type, currentTurn.player.gamePiece.color)
+                currentTurn.moves.append(Move(PhysicalBoardSquare.gamePiece, PhysicalBoardSquare.position))
+                #since we found a non-empty space and placed a piece, end this turn
+                return True
 
-    #figure out a way to draw 3 across and 3 down
-    rows = 3
-    columns = 3
-
-    #add 2 pixels to a proportion of the panel width
-    proportionedPanelSize = int(panelWidth / columns)+2
-
-    boardSquareX = panelX
-    boardSquareY = panelY
-
-    #loop through the columns from left to right
-    for i in range(0,columns):
-        #adjust the top left X coordinate point of each board square
-        boardSquareX = panelX + (proportionedPanelSize * i)
-
-        #loop through the rows from top to bottom
-        for j in range(0,rows):
-            #adjust the top left Y coordinate of each board square
-            boardSquareY = panelY + (proportionedPanelSize * j)
-            pygame.draw.rect(gameDisplay, red, (boardSquareX, boardSquareY, boardSquareSize, boardSquareSize))
+    return False
 
 
 
-def draw_panel():
-    # draw a game panel in the middle of the screen
-    # use the last 10% of the screen width and divide it by 2 to center the panel
-
-    pygame.draw.rect(gameDisplay, gray, (panelX, panelY, panelWidth, panelHeight))
-    # print(panelWidth, panelHeight)
-
+#deprecated
 def drag_n_drop(mouseDown):
     global testBoxX
     global testBoxY
@@ -190,6 +203,7 @@ def drag_n_drop(mouseDown):
     # print('framezzzzzzzz')
     ########################################################
 
+#probably deprecated
 def attach_box_to_cursor(mouseDown):
     global testBoxX
     global testBoxY
