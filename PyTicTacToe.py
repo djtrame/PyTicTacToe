@@ -45,7 +45,7 @@ def main():
     panelY = (display_height * 0.15) / 2
     panelHeight = display_height * 0.9
 
-    firstGame = Game()
+    firstGame = Game(COLUMNS, ROWS)
     gamePieceX = GamePiece('X', c.green)
     gamePieceO = GamePiece('O', c.blue)
     player1 = Player('Human', 1, gamePieceX)
@@ -58,11 +58,10 @@ def main():
     #mainBoard.printMe()
 
     #add stuff to the game object
-    firstGame.physicalGameBoard = mainBoard
+    firstGame.gameBoard = mainBoard
     firstGame.Players.append(player1)
     firstGame.Players.append(player2)
     firstGame.Turns.append(currentTurn)
-
 
     global testBoxX
     global testBoxY
@@ -86,7 +85,19 @@ def main():
             #use keys for testing certain functions
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_t:
-                    print(firstGame.isWinnerFromTopToBottom(2))
+                    #check all 3 winners from top to bottom
+                    print('Checking winners from top to bottom...')
+                    for i in range(0,3):
+                        print('Is position ' + str(i) + ' a winner?: ' + str(firstGame.isWinnerFromTopToBottom(i)))
+
+                if event.key == pygame.K_q:
+                    #print(str(len(mainBoard.BoardSquares)))
+                    print(str(len(mainBoard.GamePieces)))
+                if event.key == pygame.K_r:
+                    #check all 3 winners from left to right
+                    print('Checking winners to the right...')
+                    for i in range(0,7,3):
+                        print('Is position ' + str(i) + ' a winner?: ' + str(firstGame.isWinnerToTheright(i)))
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # print(event.button)
@@ -125,7 +136,7 @@ def main():
         #if we have double clicked let's determine what PhysicalBoardSquare was clicked on
         if double_click:
             #draw_letter()
-            endTurn = handleDoubleClick(mainBoard.PhysicalBoardSquares, currentTurn)
+            endTurn = handleDoubleClick(mainBoard, currentTurn)
             #print(endTurn)
 
             print('currentTurn #: ' + str(currentTurn.turnNum) + ' Player: ' + str(currentTurn.player.playerNum))
@@ -150,23 +161,30 @@ def main():
         pygame.display.update()
         clock.tick(FPS)
 
-def handleDoubleClick(lPhysBoardSquares, currentTurn):
+def handleDoubleClick(gameBoard, currentTurn):
     pos = pygame.mouse.get_pos()
 
     mouseX = pos[0]
     mouseY = pos[1]
 
-    for PhysicalBoardSquare in lPhysBoardSquares:
+    for PhysicalBoardSquare in gameBoard.getPhysicalBoardSquares:
         if PhysicalBoardSquare.X <= mouseX <= (PhysicalBoardSquare.X + PhysicalBoardSquare.width) and \
             PhysicalBoardSquare.Y <= mouseY <= (PhysicalBoardSquare.Y + PhysicalBoardSquare.height):
-            # print('This square was double clicked: ' + str(PhysicalBoardSquare.position))
-
-            #if this square is empty, then place the piece of the current player into the square
-            if PhysicalBoardSquare.gamePiece is None:
-                PhysicalBoardSquare.gamePiece = GamePiece(currentTurn.player.gamePiece.type, currentTurn.player.gamePiece.color)
-                currentTurn.moves.append(Move(PhysicalBoardSquare.gamePiece, PhysicalBoardSquare.position))
+            positionClicked = PhysicalBoardSquare.position
+            print('This square was double clicked: ' + str(positionClicked))
+            # if this square is empty, then place the piece of the current player into the square
+            if gameBoard.GamePieces[positionClicked].type == 'Empty':
+                newGamePiece = GamePiece(currentTurn.player.gamePiece.type, currentTurn.player.gamePiece.color)
+                gameBoard.GamePieces[positionClicked] = newGamePiece
+                currentTurn.moves.append(Move(newGamePiece, positionClicked))
                 #since we found a non-empty space and placed a piece, end this turn
                 return True
+
+            # if PhysicalBoardSquare.gamePiece is None:
+            #     PhysicalBoardSquare.gamePiece = GamePiece(currentTurn.player.gamePiece.type, currentTurn.player.gamePiece.color)
+            #     currentTurn.moves.append(Move(PhysicalBoardSquare.gamePiece, PhysicalBoardSquare.position))
+            #     #since we found a non-empty space and placed a piece, end this turn
+            #     return True
 
     return False
 
