@@ -84,20 +84,41 @@ def main():
 
             #use keys for testing certain functions
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_t:
-                    #check all 3 winners from top to bottom
-                    print('Checking winners from top to bottom...')
-                    for i in range(0,3):
-                        print('Is position ' + str(i) + ' a winner?: ' + str(firstGame.isWinnerFromTopToBottom(i)))
-
                 if event.key == pygame.K_q:
-                    #print(str(len(mainBoard.BoardSquares)))
+                    print('How big is the game pieces list?')
                     print(str(len(mainBoard.GamePieces)))
+
+                if event.key == pygame.K_w:
+                    print('What positions on the board are empty?')
+                    print(mainBoard.getOpenPositions())
+
+                if event.key == pygame.K_e:
+                    print('PhysicalBoardSquares')
+                    mainBoard.printMe()
+
                 if event.key == pygame.K_r:
                     #check all 3 winners from left to right
                     print('Checking winners to the right...')
                     for i in range(0,7,3):
-                        print('Is position ' + str(i) + ' a winner?: ' + str(firstGame.isWinnerToTheright(i)))
+                        print('Is position ' + str(i) + ' a winner?: ' + str(mainBoard.isWinnerToTheRight(i)))
+
+                if event.key == pygame.K_t:
+                    #check all 3 winners from top to bottom
+                    print('Checking winners from top to bottom...')
+                    for i in range(0,3):
+                        print('Is position ' + str(i) + ' a winner?: ' + str(mainBoard.isWinnerFromTopToBottom(i)))
+
+                if event.key == pygame.K_y:
+                    #check winner diagonally down and to the right
+                    print('Checking winner diagonally down and to the right and up to the right...')
+                    print('Is position 0 a winner?: ' + str(mainBoard.isWinnerDiagonallyDownToRight(0)))
+                    print('Is position 6 a winner?: ' + str(mainBoard.isWinnerDiagonallyUpToRight(6)))
+
+                if event.key == pygame.K_u:
+                    #check winners of all positions
+                    #todo debug this - too many positions showing as winners
+                    for i in range(0, mainBoard.numColumns * mainBoard.numRows):
+                        print('Is position ' + str(i) + ' a winner?: ' + str(mainBoard.isWinnerAtPosition(i)))
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # print(event.button)

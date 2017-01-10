@@ -8,6 +8,10 @@ class Board:
         self.BoardSquares = []
         self.GamePieces = []
 
+        #for TicTacToe the length required to win is 3
+        self.WINNING_LENGTH = 3
+
+
         #when this is initialized we need to build a matrix of BoardSquares
         # loop through the rows from top to bottom
         for i in range(0, rows):
@@ -25,6 +29,131 @@ class Board:
         for BoardSquare in self.BoardSquares:
             print('Position: ' + str(BoardSquare.position))
 
+    def getOpenPositions(self):
+        lOpenPositions = []
+
+        for i in range(0, len(self.GamePieces)):
+            if not self.getIsPositionOccupied(i):
+                lOpenPositions.append(i)
+
+        return lOpenPositions
+
+    def getIsPositionOccupied(self, position):
+        return self.GamePieces[position].type != 'Empty'
+
+    def getPoint(self,position):
+        pointX = int(position / self.numColumns)
+        pointY = position % self.numRows
+
+        return pointX, pointY
+
+    def getPositionFromPoint(self, point):
+        return int(point[0] * self.numColumns + point[1])
+
+
+    def getIsPointInBounds(self, point):
+        x = point[0]
+        y = point[1]
+
+        if x < 0 or x >= self.numRows or y < 0 or y >= self.numColumns:
+            return False
+
+        return True
+
+
+    def isWinnerFromTopToBottom(self, position):
+        #if this position isn't occupied we can't find a winner from it
+        if not self.getIsPositionOccupied(position):
+            return False
+
+        point = self.getPoint(position)
+
+        #do we have room below us?
+        if point[0] + self.WINNING_LENGTH - 1 >= self.numRows:
+            return False
+        else:
+            gamePiece = self.getPieceAtPosition(position)
+            # if (gamePiece is None) or (gamePiece.type == 'Empty'):
+            #     return False
+
+            for i in range(1, self.WINNING_LENGTH):
+                if gamePiece.type != self.getPieceAtPosition(position + 3 * i).type:
+                    return False
+
+            return True
+
+    def isWinnerToTheRight(self, position):
+        #if this position isn't occupied we can't find a winner from it
+        if not self.getIsPositionOccupied(position):
+            return False
+
+        point = self.getPoint(position)
+
+        #do we have room to the right?
+        if point[1] + self.WINNING_LENGTH - 1 >= self.numColumns:
+            return False
+        else:
+            gamePiece = self.getPieceAtPosition(position)
+            # if (gamePiece is None) or (gamePiece.type == 'Empty'):
+            #     return False
+
+            for i in range(1, self.WINNING_LENGTH):
+                if gamePiece.type != self.getPieceAtPosition(position + i).type:
+                    return False
+
+            return True
+
+    def isWinnerDiagonallyDownToRight(self, position):
+        #if this position isn't occupied we can't find a winner from it
+        if not self.getIsPositionOccupied(position):
+            return False
+
+        point = self.getPoint(position)
+
+        gamePiece = self.getPieceAtPosition(position)
+
+        for i in range(1, self.WINNING_LENGTH):
+            x = point[0] + 1
+            y = point[1] + 1
+
+            if not self.getIsPointInBounds((x,y)):
+                return False
+
+            if gamePiece.type != self.getPieceAtPosition(self.getPositionFromPoint((x,y))).type:
+                return False
+
+        return True
+
+
+    def isWinnerDiagonallyUpToRight(self, position):
+        #if this position isn't occupied we can't find a winner from it
+        if not self.getIsPositionOccupied(position):
+            return False
+
+        point = self.getPoint(position)
+
+        gamePiece = self.getPieceAtPosition(position)
+
+        for i in range(1, self.WINNING_LENGTH):
+            x = point[0] - 1
+            y = point[1] + 1
+
+            if not self.getIsPointInBounds((x, y)):
+                return False
+
+            if gamePiece.type != self.getPieceAtPosition(self.getPositionFromPoint((x, y))).type:
+                return False
+
+        return True
+
+    def isWinnerAtPosition(self, position):
+        if self.isWinnerToTheRight(position) or self.isWinnerFromTopToBottom(position) or \
+                self.isWinnerDiagonallyDownToRight(position) or self.isWinnerDiagonallyUpToRight(position):
+            return True
+        else:
+            return False
+
+
 
 class PhysicalBoard(Board):
     def __init__(self, columns, rows, X, Y, width, height):
@@ -35,7 +164,9 @@ class PhysicalBoard(Board):
         self.width = width
         self.height = height
         self.PhysicalBoardSquares = []
-        self.font = pygame.font.Font("fonts/freesansbold.ttf", 80)
+        self.smallfont = pygame.font.Font("fonts/freesansbold.ttf", 25)
+        self.mediumfont = pygame.font.Font("fonts/freesansbold.ttf", 50)
+        self.largefont = pygame.font.Font("fonts/freesansbold.ttf", 80)
 
         # make the board square 6 pixels less than 1/3 the size of the panel so we can fit 3 across and 3 down
         boardSquareSize = int((self.width / 3) - 6)
@@ -64,13 +195,6 @@ class PhysicalBoard(Board):
     def getPhysicalBoardSquares(self):
         return self.PhysicalBoardSquares
 
-    # def getPieceAtPosition(self, position):
-    #     gamePiece = self.PhysicalBoardSquares[position].getGamePiece
-    #     if gamePiece is not None:
-    #         return gamePiece
-    #     else:
-    #         return GamePiece('Empty')
-
     def draw(self, gameDisplay, color):
         pygame.draw.rect(gameDisplay, color, (self.X, self.Y, self.width, self.height))
 
@@ -78,9 +202,15 @@ class PhysicalBoard(Board):
         for PhysicalBoardSquare in self.PhysicalBoardSquares:
             PhysicalBoardSquare.draw(gameDisplay, squareColor)
 
+            #draw the position # on the board for usability
+            textSurface = self.smallfont.render(str(PhysicalBoardSquare.position), True, (0,0,0))
+            textRect = textSurface.get_rect()
+            textRect.center = (PhysicalBoardSquare.X + 15), (PhysicalBoardSquare.Y + 15)
+            gameDisplay.blit(textSurface, textRect)
+
             gamePiece = self.GamePieces[PhysicalBoardSquare.position]
             if gamePiece.type != 'Empty':
-                textSurface = self.font.render(gamePiece.type, True, gamePiece.color)
+                textSurface = self.largefont.render(gamePiece.type, True, gamePiece.color)
                 textRect = textSurface.get_rect()
 
                 # draw the piece in the center of the square
@@ -91,10 +221,11 @@ class PhysicalBoard(Board):
 
     def printMe(self):
         for PhysicalBoardSquare in self.PhysicalBoardSquares:
-            if PhysicalBoardSquare.gamePiece is None:
-                print('Position: ' + str(PhysicalBoardSquare.position) + ' ' + str(PhysicalBoardSquare.X) + ' ' + str(PhysicalBoardSquare.Y))
-            else:
-                print('Position: ' + str(PhysicalBoardSquare.position) + ' ' + str(PhysicalBoardSquare.X) + ' ' + str(PhysicalBoardSquare.Y) + ' ' + str(PhysicalBoardSquare.gamePiece.type))
+            print('Position: ' + str(PhysicalBoardSquare.position) + ' ' + str(PhysicalBoardSquare.X) + ' ' + str(PhysicalBoardSquare.Y))
+
+        #so you don't need the exact name of the class... but the intellisense helps...
+        for foo in self.PhysicalBoardSquares:
+            print('Position: ' + str(foo.position) + ' ' + str(foo.X) + ' ' + str(foo.Y))
 
 
 class PhysicalBoardSquare():
@@ -109,15 +240,6 @@ class PhysicalBoardSquare():
     def draw(self, gameDisplay, squareColor):
         pygame.draw.rect(gameDisplay, squareColor, (self.X, self.Y, self.width, self.height))
 
-        # if self.gamePiece != None:
-        #
-        #     textSurface = self.font.render(self.gamePiece.type, True, self.gamePiece.color)
-        #     textRect = textSurface.get_rect()
-        #
-        #     #draw the piece in the center of the square
-        #     textRect.center = (self.X + self.width / 2), (self.Y + self.height / 2)
-        #
-        #     gameDisplay.blit(textSurface, textRect)
 
 
 class GamePiece():
@@ -176,9 +298,6 @@ class Game():
         self.Players = []
         self.Turns = []
 
-        #for TicTacToe the length required to win is 3
-        self.WINNING_LENGTH = 3
-
     def getOpponent(self, player):
         if len(self.Players) != 2:
             raise ValueError('This game doesn''t have 2 players')
@@ -189,91 +308,3 @@ class Game():
         elif player.playerNum == 2:
             return self.Players[0]
 
-    def getPoint(self,position):
-        pointX = position / self.numColumns
-        pointY = position % self.numRows
-
-        return (pointX, pointY)
-
-    def isWinnerFromTopToBottom(self,position):
-        point = self.getPoint(position)
-
-        #do we have room below us?
-        if point[0] + self.WINNING_LENGTH - 1 >= self.numRows:
-            return False
-        else:
-            gamePiece = self.gameBoard.getPieceAtPosition(position)
-            if (gamePiece is None) or (gamePiece.type == 'Empty'):
-                return False
-
-            #for PhysicalBoardSquare in self.physicalGameBoard.PhysicalBoardSquares:
-            for i in range(1, self.WINNING_LENGTH):
-                if gamePiece.type != self.gameBoard.getPieceAtPosition(position + 3 * i).type:
-                    return False
-
-            return True
-
-    def isWinnerToTheright(self,position):
-        point = self.getPoint(position)
-
-        #do we have room to the right?
-        if point[1] + self.WINNING_LENGTH - 1 >= self.numColumns:
-            return False
-        else:
-            gamePiece = self.gameBoard.getPieceAtPosition(position)
-            if (gamePiece is None) or (gamePiece.type == 'Empty'):
-                return False
-
-            for i in range(1, self.WINNING_LENGTH):
-                if gamePiece.type != self.gameBoard.getPieceAtPosition(position + i).type:
-                    return False
-
-            return True
-
-#         // checks
-#         for a winner diagonally from the specified position
-#         // to
-#         the
-#         right
-#         private
-#         bool
-#         IsWinnerDiagonallyToRightDown(int
-#         position)
-#         {
-#             Point
-#         p = GetPoint(position);
-#
-#         if (!IsOccupied(position))
-#         return false;
-#
-#         Pieces
-#         piece = GetPieceAtPosition(position);
-#
-#         // keep
-#         moving
-#         diagonally
-#         until
-#         we
-#         reach
-#         the
-#         winningLength
-#         // or we
-#         don
-#         't see the same piece
-#         Point
-#         last = GetPoint(position);
-#         for (int i = 1; i < WINNING_LENGTH; i++)
-#         {
-#             last.X += 1;
-#         last.Y += 1;
-#         if (!IsPointInBounds(last))
-#         return false;
-#
-#         if (piece != GetPieceAtPosition(GetPositionFromPoint(last)))
-#             return false;
-#
-#     }
-#
-#     return true;
-#
-# }
