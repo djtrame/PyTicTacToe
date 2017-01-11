@@ -1,4 +1,5 @@
 import pygame
+import abc
 #from fonts import *
 
 class Board:
@@ -109,12 +110,14 @@ class Board:
             return False
 
         point = self.getPoint(position)
+        x = point[0]
+        y = point[1]
 
         gamePiece = self.getPieceAtPosition(position)
 
         for i in range(1, self.WINNING_LENGTH):
-            x = point[0] + 1
-            y = point[1] + 1
+            x += 1
+            y += 1
 
             if not self.getIsPointInBounds((x,y)):
                 return False
@@ -131,12 +134,14 @@ class Board:
             return False
 
         point = self.getPoint(position)
+        x = point[0]
+        y = point[1]
 
         gamePiece = self.getPieceAtPosition(position)
 
         for i in range(1, self.WINNING_LENGTH):
-            x = point[0] - 1
-            y = point[1] + 1
+            x -= 1
+            y += 1
 
             if not self.getIsPointInBounds((x, y)):
                 return False
@@ -153,7 +158,12 @@ class Board:
         else:
             return False
 
+    def isThereAWinner(self):
+        for i in range(0, len(self.GamePieces)):
+            if self.isWinnerAtPosition(i):
+                return True
 
+        return False
 
 class PhysicalBoard(Board):
     def __init__(self, columns, rows, X, Y, width, height):
@@ -199,36 +209,36 @@ class PhysicalBoard(Board):
         pygame.draw.rect(gameDisplay, color, (self.X, self.Y, self.width, self.height))
 
     def drawPhysicalBoardSquares(self, gameDisplay, squareColor):
-        for PhysicalBoardSquare in self.PhysicalBoardSquares:
-            PhysicalBoardSquare.draw(gameDisplay, squareColor)
+        for pbs in self.PhysicalBoardSquares:
+            pbs.draw(gameDisplay, squareColor)
 
             #draw the position # on the board for usability
-            textSurface = self.smallfont.render(str(PhysicalBoardSquare.position), True, (0,0,0))
+            textSurface = self.smallfont.render(str(pbs.position), True, (0,0,0))
             textRect = textSurface.get_rect()
-            textRect.center = (PhysicalBoardSquare.X + 15), (PhysicalBoardSquare.Y + 15)
+            textRect.center = (pbs.X + 15), (pbs.Y + 15)
             gameDisplay.blit(textSurface, textRect)
 
-            gamePiece = self.GamePieces[PhysicalBoardSquare.position]
+            gamePiece = self.GamePieces[pbs.position]
             if gamePiece.type != 'Empty':
                 textSurface = self.largefont.render(gamePiece.type, True, gamePiece.color)
                 textRect = textSurface.get_rect()
 
                 # draw the piece in the center of the square
-                textRect.center = (PhysicalBoardSquare.X + PhysicalBoardSquare.width / 2), (PhysicalBoardSquare.Y + PhysicalBoardSquare.height / 2)
+                textRect.center = (pbs.X + pbs.width / 2), (pbs.Y + pbs.height / 2)
 
                 gameDisplay.blit(textSurface, textRect)
 
 
     def printMe(self):
-        for PhysicalBoardSquare in self.PhysicalBoardSquares:
-            print('Position: ' + str(PhysicalBoardSquare.position) + ' ' + str(PhysicalBoardSquare.X) + ' ' + str(PhysicalBoardSquare.Y))
+        for pbs in self.PhysicalBoardSquares:
+            print('Position: ' + str(pbs.position) + ' ' + str(pbs.X) + ' ' + str(pbs.Y))
 
         #so you don't need the exact name of the class... but the intellisense helps...
         for foo in self.PhysicalBoardSquares:
             print('Position: ' + str(foo.position) + ' ' + str(foo.X) + ' ' + str(foo.Y))
 
 
-class PhysicalBoardSquare():
+class PhysicalBoardSquare:
     def __init__(self, position, X, Y, width, height):
 
         self.position = position
@@ -242,7 +252,7 @@ class PhysicalBoardSquare():
 
 
 
-class GamePiece():
+class GamePiece:
     def __init__(self, type, color=None):
         if type in ('O', 'X', 'Empty'):
             self.type = type
@@ -258,28 +268,48 @@ class GamePiece():
                 return 'Empty!'
 
 
-class Player():
-    def __init__(self, type, playerNum, gamePiece, searchDepth=None, evalFunctionVersion=None):
-        if type in ('Human', 'AI'):
-            self.type = type
-            self.playerNum = playerNum
-            self.gamePiece = gamePiece
-            self.searchDepth = searchDepth
-            self.evalFunctionVersion = evalFunctionVersion
-            self.gamesWon = 0
-        else:
-            raise ValueError('Player type must be a Human or an AI')
+class Player:
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, playerNum, gamePiece):
+        self.playerNum = playerNum
+        self.gamePiece = gamePiece
+        self.gamesWon = 0
+
+    @abc.abstractmethod
+    def getMove(self, newPosition):
+        """Implement a getMove method for each type of Player"""
+        return
+
+
+class HumanPlayer(Player):
+    def __init__(self, playerNum, gamePiece):
+        super().__init__(playerNum, gamePiece)
+
+    def getMove(self, newPosition):
+        return Move(self.gamePiece, newPosition)
+
+
+class ComputerPlayer(Player):
+    def __init__(self, playerNum, gamePiece, searchDepth, evalFunctionVersion):
+        super().__init__(playerNum, gamePiece)
+
+        self.searchDepth = searchDepth
+        self.evalFunctionVersion = evalFunctionVersion
+
+    def getMove(self, newPosition):
+        pass
 
 
 #represents one move of a single piece
-class Move():
+class Move:
     def __init__(self, gamePiece, newPosition):
         self.gamePiece = gamePiece
         self.newPosition = newPosition
 
 
 #represents one player's turn and the number of moves made in that turn
-class Turn():
+class Turn:
     def __init__(self, turnNum, currentPlayer):
         self.turnNum = turnNum
         self.player = currentPlayer
@@ -287,7 +317,7 @@ class Turn():
         
 #should Game have a physical game board or a game board?
 #in the future we'll need to check for winners in virtual boards, so the physical board game calls in the isWinner* functions kind of destroy that
-class Game():
+class Game:
     def __init__(self, numColumns, numRows, aiDifficulty=None):
         self.numColumns = numColumns
         self.numRows = numRows
