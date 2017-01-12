@@ -1,5 +1,6 @@
 import pygame
 import abc
+import random
 #from fonts import *
 
 class Board:
@@ -285,6 +286,7 @@ class Player:
 class HumanPlayer(Player):
     def __init__(self, playerNum, gamePiece):
         super().__init__(playerNum, gamePiece)
+        self.type = 'human'
 
     def getMove(self, newPosition):
         return Move(self.gamePiece, newPosition)
@@ -293,12 +295,25 @@ class HumanPlayer(Player):
 class ComputerPlayer(Player):
     def __init__(self, playerNum, gamePiece, searchDepth, evalFunctionVersion):
         super().__init__(playerNum, gamePiece)
-
+        self.type = 'computer'
         self.searchDepth = searchDepth
         self.evalFunctionVersion = evalFunctionVersion
 
     def getMove(self, newPosition):
         pass
+
+
+    def getRandomMove(self, gameBoard):
+        lOpenPositions = gameBoard.getOpenPositions()
+        numOpenPositions = len(lOpenPositions)
+
+        if numOpenPositions > 0:
+            randIndex = random.randint(0, numOpenPositions-1)
+            randPosition = lOpenPositions[randIndex]
+            return Move(self.gamePiece, randPosition)
+        else:
+            #can't generate a move with no positions available
+            raise ValueError('No open positions for a ComputerPlayer to generate a move to!')
 
 
 #represents one move of a single piece

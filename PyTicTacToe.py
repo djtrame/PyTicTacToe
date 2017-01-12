@@ -39,9 +39,7 @@ boxHeight = 40
 
 boxSelected = False
 
-
-
-def main():
+def startNewGame():
     global mainGameList
     global mainGame
 
@@ -49,14 +47,14 @@ def main():
     panelWidth = display_width * 0.9
     panelY = (display_height * 0.15) / 2
     panelHeight = display_height * 0.9
-
     mainGame = Game(COLUMNS, ROWS)
     mainGameList.append(mainGame)
     gamePieceX = GamePiece('X', c.green)
     gamePieceO = GamePiece('O', c.blue)
     player1 = HumanPlayer(1, gamePieceX)
-    player2 = HumanPlayer(2, gamePieceO)
-    currentTurn = Turn(len(mainGame.Turns)+1, player1)
+    #player2 = HumanPlayer(2, gamePieceO)
+    player2 = ComputerPlayer(2, gamePieceO, 2, 1)
+    firstTurn = Turn(len(mainGame.Turns)+1, player1)
 
     #this draws the gray panel that represents our game board
     #it will mostly be covered by BoardSquares
@@ -67,7 +65,40 @@ def main():
     mainGame.gameBoard = mainBoard
     mainGame.Players.append(player1)
     mainGame.Players.append(player2)
-    mainGame.Turns.append(currentTurn)
+    mainGame.Turns.append(firstTurn)
+
+def main():
+    #global mainGameList
+    global mainGame
+
+    # panelX = (display_width * 0.1) / 2
+    # panelWidth = display_width * 0.9
+    # panelY = (display_height * 0.15) / 2
+    # panelHeight = display_height * 0.9
+    #
+    # mainGame = Game(COLUMNS, ROWS)
+    # mainGameList.append(mainGame)
+    # gamePieceX = GamePiece('X', c.green)
+    # gamePieceO = GamePiece('O', c.blue)
+    # player1 = HumanPlayer(1, gamePieceX)
+    # player2 = HumanPlayer(2, gamePieceO)
+    # currentTurn = Turn(len(mainGame.Turns)+1, player1)
+    #
+    # #this draws the gray panel that represents our game board
+    # #it will mostly be covered by BoardSquares
+    # mainBoard = PhysicalBoard(COLUMNS, ROWS, panelX, panelY, panelWidth, panelHeight)
+    # #mainBoard.printMe()
+    #
+    # #add stuff to the game object
+    # mainGame.gameBoard = mainBoard
+    # mainGame.Players.append(player1)
+    # mainGame.Players.append(player2)
+    # mainGame.Turns.append(currentTurn)
+
+    ###############
+    startNewGame()
+    currentTurn = mainGame.Turns[len(mainGame.Turns)-1]
+    mainBoard = mainGame.gameBoard
 
     global testBoxX
     global testBoxY
@@ -80,8 +111,10 @@ def main():
     mouseDown = False
     double_click = False
 
+    gameOver = False
 
-    while True:
+
+    while not gameOver:
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -161,31 +194,48 @@ def main():
         #attach the box to the mouse cursor if we click over the box
         #attach_box_to_cursor(mouseDown)
 
-        #if we have double clicked let's determine what PhysicalBoardSquare was clicked on
-        if double_click:
-            positionClicked = getPositionClicked(mainBoard)
 
-            if positionClicked != -1:
-                weMoved = handleDoubleClick(mainBoard, currentTurn, positionClicked)
+        if currentTurn.player.type == 'human':
+            # if we have double clicked let's determine what PhysicalBoardSquare was clicked on
+            if double_click:
+                positionClicked = getPositionClicked(mainBoard)
 
-                print('currentTurn #: ' + str(currentTurn.turnNum) + ' Player: ' + str(currentTurn.player.playerNum))
+                if positionClicked != -1:
+                    weMoved = handleDoubleClick(mainBoard, currentTurn, positionClicked)
 
-                #if we made a move
-                if weMoved:
-                    #is the game over?
-                    if mainBoard.isThereAWinner():
-                        print('Game over!  The winner is Player ' + str(currentTurn.player.playerNum) + ' with the move at position ' + str(positionClicked) + '!')
+                    print('currentTurn #: ' + str(currentTurn.turnNum) + ' Player: ' + str(currentTurn.player.playerNum))
 
-                    newTurn = Turn(currentTurn.turnNum + 1, mainGame.getOpponent(currentTurn.player))
-                    mainGame.Turns.append(newTurn)
-                    #currentTurn = None
-                    currentTurn = newTurn
-                    print('newTurn #: ' + str(newTurn.turnNum) + ' Player: ' + str(currentTurn.player.playerNum))
+                    #if we made a move
+                    if weMoved:
+                        #is the game over?
+                        if mainBoard.isThereAWinner():
+                            gameOver = True
+                            print('Game over!  The winner is HumanPlayer ' + str(currentTurn.player.playerNum) + ' with the move at position ' + str(positionClicked) + '!')
+
+                        newTurn = Turn(currentTurn.turnNum + 1, mainGame.getOpponent(currentTurn.player))
+                        mainGame.Turns.append(newTurn)
+                        #currentTurn = None
+                        currentTurn = newTurn
+                        print('newTurn #: ' + str(newTurn.turnNum) + ' Player: ' + str(currentTurn.player.playerNum))
+                        #mainBoard.printMe()
+                        #print(str(mainBoard.getPieceAtPosition(6).type))
+
+                    double_click = False
                     #mainBoard.printMe()
-                    #print(str(mainBoard.getPieceAtPosition(6).type))
+        elif currentTurn.player.type == 'computer':
+            #the computer needs to search for a move
+            move = currentTurn.player.getRandomMove(mainBoard)
+            currentTurn.moves.append(move)
+            mainBoard.GamePieces[move.newPosition] = move.gamePiece
 
-                double_click = False
-                #mainBoard.printMe()
+            if mainBoard.isThereAWinner():
+                gameOver = True
+                print('Game over!  The winner is ComputerPlayer ' + str(
+                    currentTurn.player.playerNum) + ' with the move at position ' + str(positionClicked) + '!')
+
+            newTurn = Turn(currentTurn.turnNum + 1, mainGame.getOpponent(currentTurn.player))
+            mainGame.Turns.append(newTurn)
+            currentTurn = newTurn
 
         #at the end of the loop draw the board, display it and tick the clock
         mainBoard.draw(gameDisplay, c.gray)
