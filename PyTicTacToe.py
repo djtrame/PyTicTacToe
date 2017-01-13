@@ -29,6 +29,10 @@ testBoxY = 300
 boxWidth = 40
 boxHeight = 40
 
+smallfont = pygame.font.Font("fonts/freesansbold.ttf", 25)
+mediumfont = pygame.font.Font("fonts/freesansbold.ttf", 50)
+largefont = pygame.font.Font("fonts/freesansbold.ttf", 80)
+
 # panelX = (display_width * 0.1) / 2
 # panelWidth = display_width * 0.9
 # panelY = (display_height * 0.15) / 2
@@ -112,9 +116,10 @@ def main():
     double_click = False
 
     gameOver = False
+    gameExit = False
 
 
-    while not gameOver:
+    while not gameExit:
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -160,6 +165,15 @@ def main():
                     for i in range(0, mainBoard.numColumns * mainBoard.numRows):
                         print('Is position ' + str(i) + ' a winner?: ' + str(mainBoard.isWinnerAtPosition(i)))
 
+                if event.key == pygame.K_i:
+                    #restart the game
+                    if gameOver:
+                        gameOver = False
+                        startNewGame()
+                        currentTurn = mainGame.Turns[len(mainGame.Turns) - 1]
+                        mainBoard = mainGame.gameBoard
+
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # print(event.button)
                 if event.button == 1:
@@ -194,6 +208,17 @@ def main():
         #attach the box to the mouse cursor if we click over the box
         #attach_box_to_cursor(mouseDown)
 
+        #if the current game has ended just keep looping until the player quits or clicks the new game button
+        if gameOver:
+            double_click = False
+            drawText('Do you want to play again?  Press i', 300, 100)
+
+            p1Wins, p2Wins = countWinners()
+            drawText('Player 1 has won ' + str(p1Wins) + ' games!', 300, 200)
+            drawText('Player 2 has won ' + str(p2Wins) + ' games!', 300, 300)
+
+            pygame.display.update()
+            continue
 
         if currentTurn.player.type == 'human':
             # if we have double clicked let's determine what PhysicalBoardSquare was clicked on
@@ -211,14 +236,16 @@ def main():
                         if mainBoard.isThereAWinner():
                             gameOver = True
                             print('Game over!  The winner is HumanPlayer ' + str(currentTurn.player.playerNum) + ' with the move at position ' + str(positionClicked) + '!')
-
-                        newTurn = Turn(currentTurn.turnNum + 1, mainGame.getOpponent(currentTurn.player))
-                        mainGame.Turns.append(newTurn)
-                        #currentTurn = None
-                        currentTurn = newTurn
-                        print('newTurn #: ' + str(newTurn.turnNum) + ' Player: ' + str(currentTurn.player.playerNum))
-                        #mainBoard.printMe()
-                        #print(str(mainBoard.getPieceAtPosition(6).type))
+                            mainGame.gameWinner = currentTurn.player
+                            mainGame.gameState = 0
+                        else:
+                            newTurn = Turn(currentTurn.turnNum + 1, mainGame.getOpponent(currentTurn.player))
+                            mainGame.Turns.append(newTurn)
+                            #currentTurn = None
+                            currentTurn = newTurn
+                            print('newTurn #: ' + str(newTurn.turnNum) + ' Player: ' + str(currentTurn.player.playerNum))
+                            #mainBoard.printMe()
+                            #print(str(mainBoard.getPieceAtPosition(6).type))
 
                     double_click = False
                     #mainBoard.printMe()
@@ -232,16 +259,21 @@ def main():
                 gameOver = True
                 print('Game over!  The winner is ComputerPlayer ' + str(
                     currentTurn.player.playerNum) + ' with the move at position ' + str(positionClicked) + '!')
-
-            newTurn = Turn(currentTurn.turnNum + 1, mainGame.getOpponent(currentTurn.player))
-            mainGame.Turns.append(newTurn)
-            currentTurn = newTurn
+                mainGame.gameWinner = currentTurn.player
+                mainGame.gameState = 0
+            else:
+                newTurn = Turn(currentTurn.turnNum + 1, mainGame.getOpponent(currentTurn.player))
+                mainGame.Turns.append(newTurn)
+                currentTurn = newTurn
 
         #at the end of the loop draw the board, display it and tick the clock
         mainBoard.draw(gameDisplay, c.gray)
         mainBoard.drawPhysicalBoardSquares(gameDisplay, c.red)
+
         pygame.display.update()
         clock.tick(FPS)
+
+
 
 def getPositionClicked(gameBoard):
     positionClicked = -1
@@ -268,6 +300,24 @@ def handleDoubleClick(gameBoard, currentTurn, positionClicked):
         return True
 
     return False
+
+def drawText(text, x, y):
+    textSurface = smallfont.render(text, True, c.blue)
+    textRect = textSurface.get_rect()
+    textRect.center = x, y
+    gameDisplay.blit(textSurface, textRect)
+
+def countWinners():
+    p1Wins = 0
+    p2Wins = 0
+
+    for game in mainGameList:
+        if game.gameWinner.playerNum == 1:
+            p1Wins += 1
+        elif game.gameWinner.playerNum == 2:
+            p2Wins += 1
+
+    return p1Wins, p2Wins
 
 
 

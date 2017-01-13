@@ -166,6 +166,13 @@ class Board:
 
         return False
 
+    def getOpponentPiece(self, gamePiece):
+        if gamePiece.type == 'X':
+            return GamePiece('O')
+        elif gamePiece.type == 'O':
+            return GamePiece('X')
+
+
 class PhysicalBoard(Board):
     def __init__(self, columns, rows, X, Y, width, height):
         super().__init__(columns, rows)
@@ -175,9 +182,9 @@ class PhysicalBoard(Board):
         self.width = width
         self.height = height
         self.PhysicalBoardSquares = []
-        self.smallfont = pygame.font.Font("fonts/freesansbold.ttf", 25)
-        self.mediumfont = pygame.font.Font("fonts/freesansbold.ttf", 50)
-        self.largefont = pygame.font.Font("fonts/freesansbold.ttf", 80)
+        self.smallFont = pygame.font.Font("fonts/freesansbold.ttf", 25)
+        self.mediumFont = pygame.font.Font("fonts/freesansbold.ttf", 50)
+        self.largeFont = pygame.font.Font("fonts/freesansbold.ttf", 80)
 
         # make the board square 6 pixels less than 1/3 the size of the panel so we can fit 3 across and 3 down
         boardSquareSize = int((self.width / 3) - 6)
@@ -214,14 +221,14 @@ class PhysicalBoard(Board):
             pbs.draw(gameDisplay, squareColor)
 
             #draw the position # on the board for usability
-            textSurface = self.smallfont.render(str(pbs.position), True, (0,0,0))
+            textSurface = self.smallFont.render(str(pbs.position), True, (0,0,0))
             textRect = textSurface.get_rect()
             textRect.center = (pbs.X + 15), (pbs.Y + 15)
             gameDisplay.blit(textSurface, textRect)
 
             gamePiece = self.GamePieces[pbs.position]
             if gamePiece.type != 'Empty':
-                textSurface = self.largefont.render(gamePiece.type, True, gamePiece.color)
+                textSurface = self.largeFont.render(gamePiece.type, True, gamePiece.color)
                 textRect = textSurface.get_rect()
 
                 # draw the piece in the center of the square
@@ -269,6 +276,7 @@ class GamePiece:
                 return 'Empty!'
 
 
+#using abc we want the Player to be inherited by HumanPlayer and ComputerPlayer
 class Player:
     __metaclass__ = abc.ABCMeta
 
@@ -330,15 +338,14 @@ class Turn:
         self.player = currentPlayer
         self.moves = []
         
-#should Game have a physical game board or a game board?
-#in the future we'll need to check for winners in virtual boards, so the physical board game calls in the isWinner* functions kind of destroy that
+#represents 1 game between 2 players and captures who won when it finishes
 class Game:
     def __init__(self, numColumns, numRows, aiDifficulty=None):
         self.numColumns = numColumns
         self.numRows = numRows
         self.aiDifficulty = aiDifficulty
         self.gameBoard = None
-        self.gameState = 'In Progress'
+        self.gameState = 1 #1=In Progress; 0=Finished
         self.gameWinner = None
         self.Players = []
         self.Turns = []
@@ -353,3 +360,54 @@ class Game:
         elif player.playerNum == 2:
             return self.Players[0]
 
+
+class Node:
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, gameBoard, parentNode, move, searchDepth=2, evaluationFunctionVersion=1):
+        self.gameBoard = gameBoard
+        self.parentNode = parentNode
+        self.move = move
+        self.searchDepth = searchDepth
+        self.evaluationFunctionVersion = evaluationFunctionVersion
+
+        self.children = []
+        self.value = None
+        self.bestMoveNode = None
+
+        #if we have a parent, then our game piece is opposite of theirs
+        if self.parentNode is not None:
+            self.gamePiece = self.gameBoard.getOpponentPiece(parentNode.gamePiece)
+            self.opponentGamePiece = self.gameBoard.getOpponentPiece(self.gamePiece)
+
+
+    @abc.abstractmethod
+    def evaluate(self):
+        """Implement an evaluate method for each type of Node"""
+        return
+
+
+    @abc.abstractmethod
+    def generateChildren(self):
+        """Implement a generateChildren method for each type of Node"""
+        return
+
+    @abc.abstractmethod
+    def sortChildren(self):
+        """Implement a sortChildren method for each type of Node"""
+        return
+
+    def selectBestMove(self):
+        if len(self.children) == 0:
+            return
+
+        sortedChildren = self.sortChildren()
+
+        #code so this randomizes between children with tied value scores
+        self.bestMoveNode = sortedChildren[0]
+        self.value = self.bestMoveNode.value
+
+    #findbestmove
+    #isGameEndingNOde
+    #evaluateChildren
+    #isWinningNode
