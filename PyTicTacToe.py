@@ -251,14 +251,15 @@ def main():
                     #mainBoard.printMe()
         elif currentTurn.player.type == 'computer':
             #the computer needs to search for a move
-            move = currentTurn.player.getRandomMove(mainBoard)
+            #move = currentTurn.player.getRandomMove(mainBoard)
+            move = currentTurn.player.getMove(mainBoard)
             currentTurn.moves.append(move)
-            mainBoard.GamePieces[move.newPosition] = move.gamePiece
+            mainBoard.makeMove(move)
 
             if mainBoard.isThereAWinner():
                 gameOver = True
                 print('Game over!  The winner is ComputerPlayer ' + str(
-                    currentTurn.player.playerNum) + ' with the move at position ' + str(positionClicked) + '!')
+                    currentTurn.player.playerNum) + ' with the move at position ' + str(move.newPosition) + '!')
                 mainGame.gameWinner = currentTurn.player
                 mainGame.gameState = 0
             else:
@@ -294,7 +295,8 @@ def handleDoubleClick(gameBoard, currentTurn, positionClicked):
     if gameBoard.GamePieces[positionClicked].type == 'Empty':
         move = currentTurn.player.getMove(positionClicked)
         currentTurn.moves.append(move)
-        gameBoard.GamePieces[positionClicked] = move.gamePiece
+        #gameBoard.GamePieces[positionClicked] = move.gamePiece
+        gameBoard.makeMove(move)
 
         #since we found a non-empty space and placed a piece, end this turn
         return True

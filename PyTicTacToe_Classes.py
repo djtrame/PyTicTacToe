@@ -1,6 +1,7 @@
 import pygame
 import abc
 import random
+import copy
 #from fonts import *
 
 class Board:
@@ -9,6 +10,7 @@ class Board:
         self.numRows = rows
         self.BoardSquares = []
         self.GamePieces = []
+        self.winningPiece = None
 
         #for TicTacToe the length required to win is 3
         self.WINNING_LENGTH = 3
@@ -52,6 +54,20 @@ class Board:
     def getPositionFromPoint(self, point):
         return int(point[0] * self.numColumns + point[1])
 
+    def getPieceAtPoint(self, row, column):
+        return self.getPieceAtPosition(self.getPositionFromPoint((row,column)))
+
+    # public
+    # Pieces
+    # GetPieceAtPoint(int
+    # row, int
+    # column)
+    # {
+    # return GetPieceAtPosition(GetPositionFromPoint(new
+    # Point(row, column)));
+    #
+    # }
+
 
     def getIsPointInBounds(self, point):
         x = point[0]
@@ -61,6 +77,12 @@ class Board:
             return False
 
         return True
+
+    def makeMove(self, move):
+        if self.getIsPositionOccupied(move.newPosition):
+            raise ValueError('Can''t move here as position ' + str(move.newPosition) + ' is already occupied!')
+
+        self.GamePieces[move.newPosition] = move.gamePiece
 
 
     def isWinnerFromTopToBottom(self, position):
@@ -162,6 +184,7 @@ class Board:
     def isThereAWinner(self):
         for i in range(0, len(self.GamePieces)):
             if self.isWinnerAtPosition(i):
+                self.winningPiece = self.getPieceAtPosition(i)
                 return True
 
         return False
@@ -307,8 +330,22 @@ class ComputerPlayer(Player):
         self.searchDepth = searchDepth
         self.evalFunctionVersion = evalFunctionVersion
 
-    def getMove(self, newPosition):
-        pass
+    def getMove(self, gameBoard):
+        newBoard = copy.copy(gameBoard)
+
+        if len(newBoard.getOpenPositions()) == 9:
+            return self.getRandomMove(gameBoard)
+        else:
+            rootNode = MaxNode(gameBoard, None, None)
+            rootNode.gamePiece = self.gamePiece
+            rootNode.Evaluator = Evaluator(1, rootNode.MAXVALUE, rootNode.MINVALUE)
+            rootNode.findBestMove(1)
+
+            newMove = rootNode.bestMoveNode.move
+
+            return newMove
+
+
 
 
     def getRandomMove(self, gameBoard):
@@ -364,16 +401,21 @@ class Game:
 class Node:
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, gameBoard, parentNode, move, searchDepth=2, evaluationFunctionVersion=1):
+    MAXVALUE = 1000
+    MINVALUE = -1000
+
+    def __init__(self, gameBoard, parentNode, move, evaluationFunctionVersion):
         self.gameBoard = gameBoard
         self.parentNode = parentNode
         self.move = move
-        self.searchDepth = searchDepth
+        #self.searchDepth = searchDepth
         self.evaluationFunctionVersion = evaluationFunctionVersion
+        self.Evaluator = Evaluator(evaluationFunctionVersion, self.MAXVALUE, self.MINVALUE)
 
         self.children = []
         self.value = None
         self.bestMoveNode = None
+        self.isWinningNode = False
 
         #if we have a parent, then our game piece is opposite of theirs
         if self.parentNode is not None:
@@ -386,14 +428,13 @@ class Node:
         """Implement an evaluate method for each type of Node"""
         return
 
-
     @abc.abstractmethod
     def generateChildren(self):
         """Implement a generateChildren method for each type of Node"""
         return
 
     @abc.abstractmethod
-    def sortChildren(self):
+    def sortChildren(self, unSortedChildren):
         """Implement a sortChildren method for each type of Node"""
         return
 
@@ -401,13 +442,137 @@ class Node:
         if len(self.children) == 0:
             return
 
+        # code so this randomizes between children with tied value scores
         sortedChildren = self.sortChildren()
 
-        #code so this randomizes between children with tied value scores
         self.bestMoveNode = sortedChildren[0]
         self.value = self.bestMoveNode.value
 
-    #findbestmove
-    #isGameEndingNOde
-    #evaluateChildren
-    #isWinningNode
+    def evaluateChildren(self):
+        for node in self.children:
+            node.evaluate()
+
+    def isGameEndingNode(self):
+        return self.value == self.MAXVALUE or self.value == self.MINVALUE
+
+    def findBestMove(self, depth):
+        if depth > 0:
+            self.generateChildren()
+            self.evaluateChildren()
+
+            winningChildren = [x for x in self.children if x.isGameEndingNode()]
+
+            if len(winningChildren) > 0:
+                self.selectBestMove()
+                return
+            else:
+                for node in self.children:
+                    node.findBestMove(depth - 1)
+
+                self.selectBestMove()
+
+
+class MaxNode(Node):
+    def __init__(self, gameBoard, parentNode, move, evaluationFunctionVersion=1):
+        super().__init__(gameBoard, parentNode, move, evaluationFunctionVersion)
+
+
+    def generateChildren(self):
+        openPositions = self.gameBoard.getOpenPositions()
+
+        #todo just because we want to loop through each open position doesn't mean that index IS an open position
+        #for instance if i move in postiion 0, it is no longer open, but first time through the loop that is I
+        for i in range(0, len(openPositions)-1):
+            newBoard = copy.copy(self.gameBoard)
+            newMove = Move(self.gamePiece, i)
+            newBoard.makeMove(newMove)
+
+            self.children.append(MinNode(newBoard, self, newMove))
+
+    def evaluate(self):
+        #need Evaluator class
+        self.value = self.Evaluator.evaluate(self.gameBoard, self.gamePiece)
+
+    def isWinningNode(self):
+        #a max node has won if it's value is the maximum value
+        return self.value == self.MAXVALUE
+
+    def sortChildren(self, unSortedChildren):
+        sortedChildren = sorted(unSortedChildren, key=lambda node: node.value, reverse=True)
+        return sortedChildren
+
+class MinNode(Node):
+    def __init__(self, gameBoard, parentNode, move, evaluationFunctionVersion=1):
+        super().__init__(gameBoard, parentNode, move, evaluationFunctionVersion)
+
+
+    def generateChildren(self):
+        openPositions = self.gameBoard.getOpenPositions()
+
+        for i in range(0, len(openPositions)-1):
+            newBoard = copy.copy(self.gameBoard)
+            newMove = Move(self.gamePiece, i)
+            newBoard.makeMove(newMove)
+
+            self.children.append(MaxNode(newBoard, self, newMove))
+
+    def evaluate(self):
+        #need Evaluator class
+        self.value = self.Evaluator.evaluate(self.gameBoard, self.gameBoard.getOpponentPiece(self.gamePiece))
+
+    def isWinningNode(self):
+        #a max node has won if it's value is the maximum value
+        return self.value == self.MAXVALUE
+
+    def sortChildren(self, unSortedChildren):
+        sortedChildren = sorted(unSortedChildren, key=lambda node: node.value)
+        return sortedChildren
+
+
+class Evaluator:
+    def __init__(self, evaluationFunctionVersion, MAXVALUE, MINVALUE):
+        self.version = evaluationFunctionVersion
+        self.MAXVALUE = MAXVALUE
+        self.MINVALUE = MINVALUE
+
+    def evaluate(self, gameBoard, gamePiece):
+        if gameBoard.isThereAWinner():
+            if gameBoard.winningPiece.type == gamePiece.type:
+                return self.MAXVALUE
+            else:
+                return self.MINVALUE
+
+        maxNodeValue = 1
+        minNodeValue = 1
+
+        return maxNodeValue - minNodeValue
+
+    def evaluatePiece(self, gameBoard, gamePiece):
+        return self.evaluateRows(gameBoard, gamePiece)
+
+    def evaluateRows(self, gameBoard, gamePiece):
+        numColumns = gameBoard.numColumns
+        numRows = gameBoard.numRows
+
+        score = 0
+        #pieceCount = 0
+
+        #check the rows
+        for i in range(0, numRows):
+            pieceCount = 0
+            rowClean = True
+
+            #check the columns
+            for j in range(0, numColumns):
+                boardPiece = gameBoard.getPieceAtPoint(i, j)
+
+                if boardPiece.type == gamePiece.type:
+                    pieceCount += 1
+                elif boardPiece.type == gameBoard.getOpponentPiece(gamePiece).type:
+                    rowClean = False
+                    break
+
+            if rowClean and pieceCount != 0:
+                score += pieceCount
+
+        return score
