@@ -55,9 +55,11 @@ def startNewGame():
     mainGameList.append(mainGame)
     gamePieceX = GamePiece('X', c.green)
     gamePieceO = GamePiece('O', c.blue)
-    player1 = HumanPlayer(1, gamePieceX)
-    #player2 = HumanPlayer(2, gamePieceO)
-    player2 = ComputerPlayer(2, gamePieceO, 2, 1)
+    cpuSearchDepth = 0
+    player1 = ComputerPlayer(1, gamePieceO, cpuSearchDepth, 1)
+    #player1 = HumanPlayer(1, gamePieceX)
+    player2 = HumanPlayer(2, gamePieceX)
+    #player2 = ComputerPlayer(2, gamePieceO, cpuSearchDepth, 1)
     firstTurn = Turn(len(mainGame.Turns)+1, player1)
 
     #this draws the gray panel that represents our game board
@@ -72,34 +74,8 @@ def startNewGame():
     mainGame.Turns.append(firstTurn)
 
 def main():
-    #global mainGameList
     global mainGame
 
-    # panelX = (display_width * 0.1) / 2
-    # panelWidth = display_width * 0.9
-    # panelY = (display_height * 0.15) / 2
-    # panelHeight = display_height * 0.9
-    #
-    # mainGame = Game(COLUMNS, ROWS)
-    # mainGameList.append(mainGame)
-    # gamePieceX = GamePiece('X', c.green)
-    # gamePieceO = GamePiece('O', c.blue)
-    # player1 = HumanPlayer(1, gamePieceX)
-    # player2 = HumanPlayer(2, gamePieceO)
-    # currentTurn = Turn(len(mainGame.Turns)+1, player1)
-    #
-    # #this draws the gray panel that represents our game board
-    # #it will mostly be covered by BoardSquares
-    # mainBoard = PhysicalBoard(COLUMNS, ROWS, panelX, panelY, panelWidth, panelHeight)
-    # #mainBoard.printMe()
-    #
-    # #add stuff to the game object
-    # mainGame.gameBoard = mainBoard
-    # mainGame.Players.append(player1)
-    # mainGame.Players.append(player2)
-    # mainGame.Turns.append(currentTurn)
-
-    ###############
     startNewGame()
     currentTurn = mainGame.Turns[len(mainGame.Turns)-1]
     mainBoard = mainGame.gameBoard
@@ -109,7 +85,7 @@ def main():
 
     double_click_event = pygame.USEREVENT + 1
     timer = 0
-    double_click_duration = 220
+    double_click_duration = 250
     last_click = 0
 
     mouseDown = False
@@ -117,7 +93,6 @@ def main():
 
     gameOver = False
     gameExit = False
-
 
     while not gameExit:
 
@@ -213,9 +188,10 @@ def main():
             double_click = False
             drawText('Do you want to play again?  Press i', 300, 100)
 
-            p1Wins, p2Wins = countWinners()
+            p1Wins, p2Wins, draws = countWinners()
             drawText('Player 1 has won ' + str(p1Wins) + ' games!', 300, 200)
             drawText('Player 2 has won ' + str(p2Wins) + ' games!', 300, 300)
+            drawText('There have been ' + str(draws) + ' draws.  Boo.', 300, 400)
 
             pygame.display.update()
             continue
@@ -237,6 +213,11 @@ def main():
                             gameOver = True
                             print('Game over!  The winner is HumanPlayer ' + str(currentTurn.player.playerNum) + ' with the move at position ' + str(positionClicked) + '!')
                             mainGame.gameWinner = currentTurn.player
+                            mainGame.gameState = 0
+                        elif mainBoard.isThereADraw():
+                            gameOver = True
+                            print('It''s a draw!')
+                            mainGame.gameWinner = None
                             mainGame.gameState = 0
                         else:
                             newTurn = Turn(currentTurn.turnNum + 1, mainGame.getOpponent(currentTurn.player))
@@ -261,6 +242,11 @@ def main():
                 print('Game over!  The winner is ComputerPlayer ' + str(
                     currentTurn.player.playerNum) + ' with the move at position ' + str(move.newPosition) + '!')
                 mainGame.gameWinner = currentTurn.player
+                mainGame.gameState = 0
+            elif mainBoard.isThereADraw():
+                gameOver = True
+                print('It''s a draw!')
+                mainGame.gameWinner = None
                 mainGame.gameState = 0
             else:
                 newTurn = Turn(currentTurn.turnNum + 1, mainGame.getOpponent(currentTurn.player))
@@ -312,14 +298,17 @@ def drawText(text, x, y):
 def countWinners():
     p1Wins = 0
     p2Wins = 0
+    draws = 0
 
     for game in mainGameList:
-        if game.gameWinner.playerNum == 1:
+        if game.gameWinner is None:
+            draws += 1
+        elif game.gameWinner.playerNum == 1:
             p1Wins += 1
         elif game.gameWinner.playerNum == 2:
             p2Wins += 1
 
-    return p1Wins, p2Wins
+    return p1Wins, p2Wins, draws
 
 
 

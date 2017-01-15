@@ -57,17 +57,6 @@ class Board:
     def getPieceAtPoint(self, row, column):
         return self.getPieceAtPosition(self.getPositionFromPoint((row,column)))
 
-    # public
-    # Pieces
-    # GetPieceAtPoint(int
-    # row, int
-    # column)
-    # {
-    # return GetPieceAtPosition(GetPositionFromPoint(new
-    # Point(row, column)));
-    #
-    # }
-
 
     def getIsPointInBounds(self, point):
         x = point[0]
@@ -83,6 +72,16 @@ class Board:
             raise ValueError('Can''t move here as position ' + str(move.newPosition) + ' is already occupied!')
 
         self.GamePieces[move.newPosition] = move.gamePiece
+
+    #Boards need to be able to clone themselves because deepcopy wouldn't allow Fonts
+    #and copy still retained too many references to the original game board
+    def clone(self):
+        newBoard = Board(self.numColumns, self.numRows)
+
+        for i in range(0, len(self.GamePieces)):
+            newBoard.GamePieces[i] = GamePiece(self.GamePieces[i].type, self.GamePieces[i].color)
+
+        return newBoard
 
 
     def isWinnerFromTopToBottom(self, position):
@@ -189,6 +188,18 @@ class Board:
 
         return False
 
+    def isThereADraw(self):
+        #is the board has a winner there is no draw
+        if self.isThereAWinner():
+            return False
+
+        #if there are any open positions then there isn't a draw
+        if len(self.getOpenPositions()) > 0:
+            return False
+        else:
+            return True
+
+    #pycharm thinks this could be a static method because i don't reference self anywhere in the method
     def getOpponentPiece(self, gamePiece):
         if gamePiece.type == 'X':
             return GamePiece('O')
@@ -331,22 +342,25 @@ class ComputerPlayer(Player):
         self.evalFunctionVersion = evalFunctionVersion
 
     def getMove(self, gameBoard):
-        newBoard = copy.copy(gameBoard)
+        #if someone would be so cruel as to give a CPU no ability to look ahead, just go rando
+        if self.searchDepth == 0:
+            return self.getRandomMove(gameBoard)
+
+        #newBoard = copy.copy(gameBoard)
+        newBoard = gameBoard.clone()
 
         if len(newBoard.getOpenPositions()) == 9:
             return self.getRandomMove(gameBoard)
         else:
             rootNode = MaxNode(gameBoard, None, None)
             rootNode.gamePiece = self.gamePiece
-            rootNode.Evaluator = Evaluator(1, rootNode.MAXVALUE, rootNode.MINVALUE)
-            rootNode.findBestMove(1)
+            #rootNode.Evaluator = Evaluator(1, rootNode.MAXVALUE, rootNode.MINVALUE)
+            #rootNode.staticEvaluator = Evaluator(1, rootNode.MAXVALUE, rootNode.MINVALUE)
+            rootNode.findBestMove(self.searchDepth)
 
             newMove = rootNode.bestMoveNode.move
 
             return newMove
-
-
-
 
     def getRandomMove(self, gameBoard):
         lOpenPositions = gameBoard.getOpenPositions()
@@ -358,7 +372,7 @@ class ComputerPlayer(Player):
             return Move(self.gamePiece, randPosition)
         else:
             #can't generate a move with no positions available
-            raise ValueError('No open positions for a ComputerPlayer to generate a move to!')
+            raise ValueError('No open positions for a ComputerPlayer to generate a random move to!')
 
 
 #represents one move of a single piece
@@ -374,6 +388,7 @@ class Turn:
         self.turnNum = turnNum
         self.player = currentPlayer
         self.moves = []
+
         
 #represents 1 game between 2 players and captures who won when it finishes
 class Game:
@@ -403,6 +418,7 @@ class Node:
 
     MAXVALUE = 1000
     MINVALUE = -1000
+    #staticEvaluator = None
 
     def __init__(self, gameBoard, parentNode, move, evaluationFunctionVersion):
         self.gameBoard = gameBoard
@@ -416,6 +432,7 @@ class Node:
         self.value = None
         self.bestMoveNode = None
         self.isWinningNode = False
+        self.name = 'root'
 
         #if we have a parent, then our game piece is opposite of theirs
         if self.parentNode is not None:
@@ -443,7 +460,7 @@ class Node:
             return
 
         # code so this randomizes between children with tied value scores
-        sortedChildren = self.sortChildren()
+        sortedChildren = self.sortChildren(self.children)
 
         self.bestMoveNode = sortedChildren[0]
         self.value = self.bestMoveNode.value
@@ -457,6 +474,7 @@ class Node:
 
     def findBestMove(self, depth):
         if depth > 0:
+            print('Type: ' + str(type(self)) + ' Piece: ' + self.gamePiece.type + ' Depth: ' + str(depth))
             self.generateChildren()
             self.evaluateChildren()
 
@@ -476,21 +494,19 @@ class MaxNode(Node):
     def __init__(self, gameBoard, parentNode, move, evaluationFunctionVersion=1):
         super().__init__(gameBoard, parentNode, move, evaluationFunctionVersion)
 
-
     def generateChildren(self):
         openPositions = self.gameBoard.getOpenPositions()
 
-        #todo just because we want to loop through each open position doesn't mean that index IS an open position
-        #for instance if i move in postiion 0, it is no longer open, but first time through the loop that is I
-        for i in range(0, len(openPositions)-1):
-            newBoard = copy.copy(self.gameBoard)
-            newMove = Move(self.gamePiece, i)
+        for i in range(0, len(openPositions)):
+            #newBoard = copy.copy(self.gameBoard)
+            newBoard = self.gameBoard.clone()
+            newMove = Move(self.gamePiece, openPositions[i])
             newBoard.makeMove(newMove)
 
             self.children.append(MinNode(newBoard, self, newMove))
 
     def evaluate(self):
-        #need Evaluator class
+        #print (str(type(self)) + ' evaluating!')
         self.value = self.Evaluator.evaluate(self.gameBoard, self.gamePiece)
 
     def isWinningNode(self):
@@ -505,20 +521,20 @@ class MinNode(Node):
     def __init__(self, gameBoard, parentNode, move, evaluationFunctionVersion=1):
         super().__init__(gameBoard, parentNode, move, evaluationFunctionVersion)
 
-
     def generateChildren(self):
         openPositions = self.gameBoard.getOpenPositions()
 
-        for i in range(0, len(openPositions)-1):
-            newBoard = copy.copy(self.gameBoard)
-            newMove = Move(self.gamePiece, i)
+        for i in range(0, len(openPositions)):
+            #newBoard = copy.copy(self.gameBoard)
+            newBoard = self.gameBoard.clone()
+            newMove = Move(self.gamePiece, openPositions[i])
             newBoard.makeMove(newMove)
 
             self.children.append(MaxNode(newBoard, self, newMove))
 
     def evaluate(self):
-        #need Evaluator class
-        self.value = self.Evaluator.evaluate(self.gameBoard, self.gameBoard.getOpponentPiece(self.gamePiece))
+        #print (str(type(self)) + ' evaluating!')
+        self.value = self.Evaluator.evaluate(self.gameBoard, self.opponentGamePiece)
 
     def isWinningNode(self):
         #a max node has won if it's value is the maximum value
@@ -537,25 +553,27 @@ class Evaluator:
 
     def evaluate(self, gameBoard, gamePiece):
         if gameBoard.isThereAWinner():
+            #print('evaluator found a winner!')
             if gameBoard.winningPiece.type == gamePiece.type:
                 return self.MAXVALUE
             else:
                 return self.MINVALUE
 
-        maxNodeValue = 1
-        minNodeValue = 1
+        #by the time the first one of these runs "gamePiece" is an X when it needs to be an O
+        maxNodeValue = self.evaluatePiece(gameBoard, gamePiece)
+        minNodeValue = self.evaluatePiece(gameBoard, gameBoard.getOpponentPiece(gamePiece))
+        print('    gamePiece: ' + str(gamePiece.type) + ' MaxValue: ' + str(maxNodeValue) + ' MinValue: ' + str(minNodeValue))
 
         return maxNodeValue - minNodeValue
 
     def evaluatePiece(self, gameBoard, gamePiece):
-        return self.evaluateRows(gameBoard, gamePiece)
+        return self.evaluateRows(gameBoard, gamePiece) + self.evaluateColumns(gameBoard, gamePiece) + self.evaluateDiagonals(gameBoard, gamePiece)
 
     def evaluateRows(self, gameBoard, gamePiece):
         numColumns = gameBoard.numColumns
         numRows = gameBoard.numRows
 
         score = 0
-        #pieceCount = 0
 
         #check the rows
         for i in range(0, numRows):
@@ -575,4 +593,77 @@ class Evaluator:
             if rowClean and pieceCount != 0:
                 score += pieceCount
 
+        #print('holy moly score bore')
         return score
+
+    def evaluateColumns(self, gameBoard, gamePiece):
+        numColumns = gameBoard.numColumns
+        numRows = gameBoard.numRows
+
+        score = 0
+
+        #check the columns
+        for j in range(0, numColumns):
+            pieceCount = 0
+            colClean = True
+
+            #check the rows
+            for i in range(0, numRows):
+                boardPiece = gameBoard.getPieceAtPoint(i, j)
+                #boardPiece = gameBoard.getPieceAtPoint(j, i)
+
+                if boardPiece.type == gamePiece.type:
+                    pieceCount += 1
+                elif boardPiece.type == gameBoard.getOpponentPiece(gamePiece).type:
+                    colClean = False
+                    break
+
+            if colClean and pieceCount != 0:
+                score += pieceCount
+
+        return score
+
+    def evaluateDiagonals(self, gameBoard, gamePiece):
+        pieceCount = 0
+        score = 0
+        diagonalClean = True
+        opponentPiece = gameBoard.getOpponentPiece(gamePiece)
+
+        #handle the down to right diagonal first
+        for i in range(0, gameBoard.numColumns):
+            boardPiece = gameBoard.getPieceAtPoint(i, i)
+
+            if boardPiece.type == gamePiece.type:
+                pieceCount += 1
+
+            if boardPiece.type == opponentPiece.type:
+                diagonalClean = False
+                break
+
+        if diagonalClean and pieceCount > 0:
+            score += pieceCount
+
+        #now handle the down to left diagonal
+        row = 0
+        col = 2
+        pieceCount = 0
+        diagonalClean = True
+
+        while row < gameBoard.numRows and col >= 0:
+            boardPiece = gameBoard.getPieceAtPoint(row, col)
+
+            if boardPiece.type == gamePiece.type:
+                pieceCount += 1
+
+            if boardPiece.type == opponentPiece.type:
+                diagonalClean = False
+                break
+
+            row += 1
+            col -= 1
+
+        if diagonalClean and pieceCount > 0:
+            score += pieceCount
+
+        return score
+
